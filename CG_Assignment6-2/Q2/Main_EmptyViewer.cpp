@@ -1,4 +1,5 @@
-﻿#include <Windows.h>
+﻿// 리팩토링된 Gouraud Shading 렌더링 코드 (GLM 방식 중심)
+#include <Windows.h>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -9,89 +10,103 @@
 #define GLFW_DLL
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/string_cast.hpp>
-
-#include "sphere_scene.h"
+#include <glm/gtc/type_ptr.hpp>
 #include "Object.h"
-#include "Material.h"
-#include "viewPipeline.h"
-using namespace glm;
 
-inline glm::vec3 make_vec3(const float arr[3]) {
-    return glm::vec3(arr[0], arr[1], arr[2]);
-}
+using namespace glm;
 
 int Width = 512;
 int Height = 512;
-std::vector<float> OutputImage; 
 
-// Gouraud Shading Rasterizer
+std::vector<vec3> gVertices;
+std::vector<int> gIndexBuffer;
+std::vector<float> DepthBuffer(Width* Height, 1e9f);
+std::vector<float> OutputImage(Width* Height * 3, 0.0f);
 
-inline glm::vec3 calculate_vertex_color(
-    const glm::vec3& pos,
-    const glm::vec3& normal,
-    const glm::vec3& light_pos,
-    const glm::vec3& view_pos,
-    const glm::vec3& kd,
-    const glm::vec3& ka,
-    const glm::vec3& ks,
-    float p,
-    const glm::vec3& light_color,
-    const glm::vec3& la)
-{
-    glm::vec3 L = glm::normalize(light_pos - pos);
-    glm::vec3 V = glm::normalize(view_pos - pos);
-    glm::vec3 H = glm::normalize(V + L);
-    glm::vec3 N = glm::normalize(normal);
+void create_scene() {
+    int Width = 32, Height = 16;
+    gVertices.resize((Height - 2) * Width + 2);
+    gIndexBuffer.resize((Height - 2) * (Width - 1) * 6 + 6 * (Width - 1));
 
-    float diff = glm::max(glm::dot(N, L), 0.0f);
-    float spec = glm::pow(glm::max(glm::dot(N, H), 0.0f), p);
+    int t = 0;
+    for (int j = 1; j < Height - 1; ++j) {
+        for (int i = 0; i < Width; ++i) {
+            float theta = float(j) / (Height - 1) * pi<float>();
+            float phi = float(i) / (Width - 1) * 2 * pi<float>();
+            float x = sin(theta) * cos(phi);
+            float y = cos(theta);
+            float z = -sin(theta) * sin(phi);
+            gVertices[t++] = vec3(x, y, z);
+        }
+    }
+    gVertices[t++] = vec3(0, 1, 0);
+    gVertices[t++] = vec3(0, -1, 0);
 
-    glm::vec3 ambient = ka * la;
-    glm::vec3 diffuse = kd * diff * light_color;
-    glm::vec3 specular = ks * spec * light_color;
-
-    return glm::clamp(ambient + diffuse + specular, 0.0f, 1.0f);
+    t = 0;
+    for (int j = 0; j < Height - 3; ++j) {
+        for (int i = 0; i < Width - 1; ++i) {
+            gIndexBuffer[t++] = j * Width + i;
+            gIndexBuffer[t++] = (j + 1) * Width + (i + 1);
+            gIndexBuffer[t++] = j * Width + (i + 1);
+            gIndexBuffer[t++] = j * Width + i;
+            gIndexBuffer[t++] = (j + 1) * Width + i;
+            gIndexBuffer[t++] = (j + 1) * Width + (i + 1);
+        }
+    }
+    for (int i = 0; i < Width - 1; ++i) {
+        gIndexBuffer[t++] = (Height - 2) * Width;
+        gIndexBuffer[t++] = i;
+        gIndexBuffer[t++] = i + 1;
+        gIndexBuffer[t++] = (Height - 2) * Width + 1;
+        gIndexBuffer[t++] = (Height - 3) * Width + (i + 1);
+        gIndexBuffer[t++] = (Height - 3) * Width + i;
+    }
 }
 
-void rasterize_triangle(
-    std::vector<float>& framebuffer,
-    const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2,
-    const glm::vec3& c0, const glm::vec3& c1, const glm::vec3& c2,
-    float** z_buffer,
-    int width, int height)
-{
-    int xmin = std::max(0, (int)std::floor(std::min({ v0.x, v1.x, v2.x })));
-    int xmax = std::min(width - 1, (int)std::ceil(std::max({ v0.x, v1.x, v2.x })));
-    int ymin = std::max(0, (int)std::floor(std::min({ v0.y, v1.y, v2.y })));
-    int ymax = std::min(height - 1, (int)std::ceil(std::max({ v0.y, v1.y, v2.y })));
+vec3 phong_color(vec3 pos, vec3 normal) {
+    vec3 ka(0, 1, 0), kd(0, 0.5, 0), ks(0.5);
+    vec3 light_pos(-4, 3, -3), view_pos(0);
+    vec3 l = normalize(light_pos - pos), v = normalize(view_pos - pos), h = normalize(l + v);
+    vec3 ambient = 0.2f * ka;
+    vec3 diffuse = kd * max(dot(normal, l), 0.0f); 
+    vec3 specular = ks * static_cast<float>(pow(max(dot(normal, h), 0.0f), 32.0f));
+    vec3 color = ambient + diffuse + specular;
+    return pow(clamp(color, 0.0f, 1.0f), vec3(1.0f / 2.2f));
+}
 
-    for (int y = ymin; y <= ymax; y++) {
-        for (int x = xmin; x <= xmax; x++) {
-            glm::vec2 p = glm::vec2(x + 0.5f, y + 0.5f);
-            glm::vec2 a = glm::vec2(v0);
-            glm::vec2 b = glm::vec2(v1);
-            glm::vec2 c = glm::vec2(v2);
+void rasterize_triangle(vec4 v0, vec4 v1, vec4 v2, vec3 c0, vec3 c1, vec3 c2) {
+    vec3 p0 = vec3(v0) / v0.w, p1 = vec3(v1) / v1.w, p2 = vec3(v2) / v2.w;
+    auto to_screen = [](vec3 p) { return vec2((p.x + 1) * 0.5f * Width, (p.y + 1) * 0.5f * Height); };
+    vec2 s0 = to_screen(p0), s1 = to_screen(p1), s2 = to_screen(p2);
 
-            float beta = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
-            float gamma = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
-            float alpha = 1.0f - beta - gamma;
+    int minX = floor(std::min({ s0.x, s1.x, s2.x })), maxX = ceil(std::max({ s0.x, s1.x, s2.x }));
+    int minY = floor(std::min({ s0.y, s1.y, s2.y })), maxY = ceil(std::max({ s0.y, s1.y, s2.y }));
 
-            if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                float z = alpha * v0.z + beta * v1.z + gamma * v2.z;
-                if (z < z_buffer[y][x]) {
-                    z_buffer[y][x] = z;
-                    glm::vec3 color = alpha * c0 + beta * c1 + gamma * c2;
+    for (int y = minY; y <= maxY; ++y) {
+        for (int x = minX; x <= maxX; ++x) {
+            vec2 p(x + 0.5f, y + 0.5f);
+            vec2 e0 = s1 - s0, e1 = s2 - s1, e2 = s0 - s2;
+            vec2 vp0 = p - s0, vp1 = p - s1, vp2 = p - s2;
 
-                    int screen_y = height - 1 - y;
-                    int screen_x = width - 1 - x;
-                    int idx = (screen_y * width + screen_x) * 3;
+            float a = e0.x * vp0.y - e0.y * vp0.x;
+            float b = e1.x * vp1.y - e1.y * vp1.x;
+            float c = e2.x * vp2.y - e2.y * vp2.x;
+            if ((a >= 0 && b >= 0 && c >= 0) || (a <= 0 && b <= 0 && c <= 0)) {
+                float area = abs((s1.x - s0.x) * (s2.y - s0.y) - (s2.x - s0.x) * (s1.y - s0.y));
+                float w0 = abs((s1.x - p.x) * (s2.y - p.y) - (s2.x - p.x) * (s1.y - p.y)) / area;
+                float w1 = abs((s2.x - p.x) * (s0.y - p.y) - (s0.x - p.x) * (s2.y - p.y)) / area;
+                float w2 = 1.0f - w0 - w1;
+                float z = w0 * p0.z + w1 * p1.z + w2 * p2.z;
 
-                    framebuffer[idx + 0] = color.r;
-                    framebuffer[idx + 1] = color.g;
-                    framebuffer[idx + 2] = color.b;
+                int idx = y * Width + x;
+                if (idx < 0 || idx >= Width * Height) continue;
+                if (z < DepthBuffer[idx]) {
+                    DepthBuffer[idx] = z;
+                    vec3 color = w0 * c0 + w1 * c1 + w2 * c2;
+                    OutputImage[3 * idx + 0] = color.r;
+                    OutputImage[3 * idx + 1] = color.g;
+                    OutputImage[3 * idx + 2] = color.b;
                 }
             }
         }
@@ -99,188 +114,117 @@ void rasterize_triangle(
 }
 
 void render() {
-    OutputImage.clear();
-    OutputImage.resize(Width * Height * 3, 0.0f);
+    create_scene();
+    mat4 model = scale(translate(mat4(1), vec3(0, 0, -7)), vec3(2));
+    mat4 view = lookAt(vec3(0), vec3(0, 0, -1), vec3(0, 1, 0));
+    mat4 proj = frustum(-0.1f, 0.1f, -0.1f, 0.1f, 0.1f, 100.0f);
+    mat4 MVP = proj * view * model;
 
-    ObjectData data = create_scene(32, 16);
-    float model[4][4] = {
-        {2, 0, 0, 0},
-        {0, 2, 0, 0},
-        {0, 0, 2, -7},
-        {0, 0, 0, 1}
-    };
-
-    Camera camera = { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,-1} };
-    glm::vec3 view_pos = make_vec3(camera.eye);
-    glm::vec3 LightSource = { -4, 4, -3 };
-    Material M = { {0,1,0}, {0,0.5f,0}, {0.5f,0.5f,0.5f}, 32.0f, glm::vec3(0.2f) };
-    float gammaCorrection = 2.2f;
-
-    std::vector<glm::vec3> light_vertices(data.numVertices);
-    std::vector<glm::vec3> screen_vertices(data.numVertices);
-    std::vector<glm::vec3> vertex_colors(data.numVertices);
-
-    float** z_buffer = new float* [Height];
-    for (int i = 0; i < Height; i++) {
-        z_buffer[i] = new float[Width];
-        std::fill(z_buffer[i], z_buffer[i] + Width, 1.0f);
+    std::vector<vec3> colors(gVertices.size());
+    for (int i = 0; i < gVertices.size(); ++i) {
+        vec3 pos = vec3(model * vec4(gVertices[i], 1));
+        vec3 norm = normalize(mat3(transpose(inverse(model))) * gVertices[i]);
+        colors[i] = phong_color(pos, norm);
     }
 
-    
-    for (int i = 0; i < data.numVertices; i++) {
-        float vert4[4] = {
-            data.vertexBuffer[3 * i + 0],
-            data.vertexBuffer[3 * i + 1],
-            data.vertexBuffer[3 * i + 2],
-            1.0f
-        };
-        float* mv = M_Model(vert4, model);
-
-        glm::vec3 pos = glm::vec3(mv[0] / mv[3], mv[1] / mv[3], mv[2] / mv[3]);
-
-        float* cv = M_Camera(mv, camera);
-        float* pv = M_Perspective(cv, -0.1f, -1000);
-        float* ov = M_Orthograph(pv, -0.1f, 0.1f, -0.1f, 0.1f, -0.1f, -1000);
-        float* sv = M_Viewport(ov, Width, Height);
-        screen_vertices[i] = glm::vec3(sv[0] / sv[3], sv[1] / sv[3], sv[2] / sv[3]);
-
-        //glm::vec3 normal = glm::normalize(glm::vec3(
-        //    data.normalBuffer[3 * i + 0],
-        //    data.normalBuffer[3 * i + 1],
-        //    data.normalBuffer[3 * i + 2]
-        //));
-
-
-        float normal[4] = {
-            data.normalBuffer[3 * i + 0],   
-            data.normalBuffer[3 * i + 1],
-            data.normalBuffer[3 * i + 2],
-            0.0f
-        };
-
-        float* mn = M_Model(normal, model);
-
-        glm::vec3 result_normal = glm::vec3(mn[0], mn[1], mn[2]);
-
-        result_normal = glm::normalize(result_normal);
-
-
-        vertex_colors[i] = calculate_vertex_color(
-            pos, result_normal, LightSource, view_pos,
-            M.kd, M.ka, M.ks, M.p,
-            glm::vec3(1.0f), M.Ia
-        );
+    for (int i = 0; i < gIndexBuffer.size(); i += 3) {
+        int ia = gIndexBuffer[i], ib = gIndexBuffer[i + 1], ic = gIndexBuffer[i + 2];
+        rasterize_triangle(MVP * vec4(gVertices[ia], 1), MVP * vec4(gVertices[ib], 1), MVP * vec4(gVertices[ic], 1),
+            colors[ia], colors[ib], colors[ic]);
     }
-
-    for (int i = 0; i < data.numTriangles; i++) {
-        int k0 = data.indexBuffer[3 * i + 0];
-        int k1 = data.indexBuffer[3 * i + 1];
-        int k2 = data.indexBuffer[3 * i + 2];
-        rasterize_triangle(OutputImage,
-            screen_vertices[k0], screen_vertices[k1], screen_vertices[k2],
-            vertex_colors[k0], vertex_colors[k1], vertex_colors[k2],
-            z_buffer, Width, Height);
-    }
-
-    for (auto& v : OutputImage) {
-        v = glm::clamp(powf(v, 1.0f / gammaCorrection), 0.0f, 1.0f);
-    }
-
-    for (int i = 0; i < Height; i++) delete[] z_buffer[i];
-    delete[] z_buffer;
 }
 
 
 void resize_callback(GLFWwindow*, int nw, int nh)
 {
-	//This is called in response to the window resizing.
-	//The new width and height are passed in so we make 
-	//any necessary changes:
-	Width = nw;
-	Height = nh;
-	//Tell the viewport to use all of our screen estate
-	glViewport(0, 0, nw, nh);
+    //This is called in response to the window resizing.
+    //The new Width and Height are passed in so we make 
+    //any necessary changes:
+    Width = nw;
+    Height = nh;
+    //Tell the viewport to use all of our screen estate
+    glViewport(0, 0, nw, nh);
 
-	//This is not necessary, we're just working in 2d so
-	//why not let our spaces reflect it?
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+    //This is not necessary, we're just working in 2d so
+    //why not let our spaces reflect it?
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
 
-	glOrtho(0.0, static_cast<double>(Width)
-		, 0.0, static_cast<double>(Height)
-		, 1.0, -1.0);
+    glOrtho(0.0, static_cast<double>(Width)
+        , 0.0, static_cast<double>(Height)
+        , 1.0, -1.0);
 
-	//Reserve memory for our render so that we don't do 
-	//excessive allocations and render the image
-	OutputImage.reserve(Width * Height * 3);
-	render();
+    //Reserve memory for our render so that we don't do 
+    //excessive allocations and render the image
+    OutputImage.reserve(Width * Height * 3);
+    render();
 }
 
 
 int main(int argc, char* argv[])
 {
-	// -------------------------------------------------
-	// Initialize Window
-	// -------------------------------------------------
+    // -------------------------------------------------
+    // Initialize Window
+    // -------------------------------------------------
 
-	GLFWwindow* window;
+    GLFWwindow* window;
 
-	/* Initialize the library */
-	if (!glfwInit())
-		return -1;
+    /* Initialize the library */
+    if (!glfwInit())
+        return -1;
 
-	/* Create a windowed mode window and its OpenGL context */
-	window = glfwCreateWindow(Width, Height, "OpenGL Viewer", NULL, NULL);
-	if (!window)
-	{
-		glfwTerminate();
-		return -1;
-	}
+    /* Create a windowed mode window and its OpenGL context */
+    window = glfwCreateWindow(Width, Height, "OpenGL Viewer", NULL, NULL);
+    if (!window)
+    {
+        glfwTerminate();
+        return -1;
+    }
 
-	/* Make the window's context current */
-	glfwMakeContextCurrent(window);
+    /* Make the window's context current */
+    glfwMakeContextCurrent(window);
 
-	//We have an opengl context now. Everything from here on out 
-	//is just managing our window or opengl directly.
+    //We have an opengl context now. Everything from here on out 
+    //is just managing our window or opengl directly.
 
-	//Tell the opengl state machine we don't want it to make 
-	//any assumptions about how pixels are aligned in memory 
-	//during transfers between host and device (like glDrawPixels(...) )
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    //Tell the opengl state machine we don't want it to make 
+    //any assumptions about how pixels are aligned in memory 
+    //during transfers between host and device (like glDrawPixels(...) )
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
 
-	//We call our resize function once to set everything up initially
-	//after registering it as a callback with glfw
-	glfwSetFramebufferSizeCallback(window, resize_callback);
-	resize_callback(NULL, Width, Height);
+    //We call our resize function once to set everything up initially
+    //after registering it as a callback with glfw
+    glfwSetFramebufferSizeCallback(window, resize_callback);
+    resize_callback(NULL, Width, Height);
 
-	/* Loop until the user closes the window */
-	while (!glfwWindowShouldClose(window))
-	{
-		//Clear the screen
-		glClear(GL_COLOR_BUFFER_BIT);
+    /* Loop until the user closes the window */
+    while (!glfwWindowShouldClose(window))
+    {
+        //Clear the screen
+        glClear(GL_COLOR_BUFFER_BIT);
 
-		// -------------------------------------------------------------
-		//Rendering begins!
-		glDrawPixels(Width, Height, GL_RGB, GL_FLOAT, &OutputImage[0]);
-		//and ends.
-		// -------------------------------------------------------------
+        // -------------------------------------------------------------
+        //Rendering begins!
+        glDrawPixels(Width, Height, GL_RGB, GL_FLOAT, &OutputImage[0]);
+        //and ends.
+        // -------------------------------------------------------------
 
-		/* Swap front and back buffers */
-		glfwSwapBuffers(window);
+        /* Swap front and back buffers */
+        glfwSwapBuffers(window);
 
-		/* Poll for and process events */
-		glfwPollEvents();
+        /* Poll for and process events */
+        glfwPollEvents();
 
-		//Close when the user hits 'q' or escape
-		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS
-			|| glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-		{
-			glfwSetWindowShouldClose(window, GL_TRUE);
-		}
-	}
+        //Close when the user hits 'q' or escape
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS
+            || glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        {
+            glfwSetWindowShouldClose(window, GL_TRUE);
+        }
+    }
 
-	glfwDestroyWindow(window);
-	glfwTerminate();
-	return 0;
+    glfwDestroyWindow(window);
+    glfwTerminate();
+    return 0;
 }

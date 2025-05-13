@@ -1,4 +1,4 @@
-﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(534,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (EmptyViewer.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(531,5): warning MSB8028: 중간 디렉터리(Debug\)에 다른 프로젝트(EmptyViewer.vcxproj)에서 공유하는 파일이 포함되어 있습니다.  이로 인해 잘못된 정리 및 다시 빌드 동작이 수행될 수 있습니다.
   Main_EmptyViewer.cpp
   GLM: rotate function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: rotate_slow function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
@@ -12,4 +12,10 @@
   GLM: yaw function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angle function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angleAxis function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
-  Q2.vcxproj -> D:\GitClone\CG_Assignment06\CG_Assignment6-1\bin\Q2.exe
+D:\Git\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(83,14): warning C4244: '초기화 중': 'float'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\Git\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(83,60): warning C4244: '초기화 중': 'float'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\Git\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(84,14): warning C4244: '초기화 중': 'float'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\Git\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(84,60): warning C4244: '초기화 중': 'float'에서 'int'(으)로 변환하면서 데이터가 손실될 수 있습니다.
+D:\Git\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(124,23): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+D:\Git\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(130,23): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
+  Q2.vcxproj -> D:\Git\CG_Assignment06\CG_Assignment6-1\bin\Q2.exe

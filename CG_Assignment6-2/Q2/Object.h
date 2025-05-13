@@ -6,7 +6,6 @@
 #include <cstdio> 
 typedef struct {
     float* vertexBuffer;
-    float* normalBuffer;
     int* indexBuffer;
     int numVertices;
     int numTriangles;
