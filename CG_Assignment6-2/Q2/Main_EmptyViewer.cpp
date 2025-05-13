@@ -53,22 +53,23 @@ inline glm::vec3 calculate_vertex_color(
     glm::vec3 diffuse = kd * diff * light_color;
     glm::vec3 specular = ks * spec * light_color;
 
-    return glm::clamp(ambient + diffuse + specular, 0.0f, 1.0f);
+    vec3 color = ambient + diffuse + specular;
+
+    color.r = pow(color.r, 1.0f / 2.2f);
+    color.g = pow(color.g, 1.0f / 2.2f);
+    color.b = pow(color.b, 1.0f / 2.2f);
+
+    return clamp(color, 0.0f, 1.0f);
+
 }
-void rasterize_triangle(
+
+void rasterize_triangle_gouraud(
     std::vector<float>& framebuffer,
-    const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2,
-    const glm::vec3& n0, const glm::vec3& n1, const glm::vec3& n2,
-    const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2,
+    const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2,   // 화면 공간 정점 (x, y, z)
+    const glm::vec3& c0, const glm::vec3& c1, const glm::vec3& c2,   // 각 정점의 조명 계산 색상
     float** z_buffer,
-    int width, int height,
-    const glm::vec3& light_pos,
-    const glm::vec3& view_pos,
-    const Material& mat,
-    const glm::vec3& light_color,
-    const glm::vec3& ambient_light
-)
-{
+    int width, int height
+) {
     int xmin = std::max(0, (int)std::floor(std::min({ v0.x, v1.x, v2.x })));
     int xmax = std::min(width - 1, (int)std::ceil(std::max({ v0.x, v1.x, v2.x })));
     int ymin = std::max(0, (int)std::floor(std::min({ v0.y, v1.y, v2.y })));
@@ -78,30 +79,25 @@ void rasterize_triangle(
         for (int x = xmin; x <= xmax; x++) {
             int screen_y = height - 1 - y;
             int screen_x = width - 1 - x;
+
             glm::vec2 p = glm::vec2(x + 0.5f, y + 0.5f);
             glm::vec2 a = glm::vec2(v0);
             glm::vec2 b = glm::vec2(v1);
             glm::vec2 c = glm::vec2(v2);
+
             float denom = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
-            if (std::abs(denom) < 1e-5f) continue;
+            if (std::abs(denom) < 1e-5f) continue; // degenerate triangle
 
             float beta = ((b.y - c.y) * (p.x - c.x) + (c.x - b.x) * (p.y - c.y)) / denom;
             float gamma = ((c.y - a.y) * (p.x - c.x) + (a.x - c.x) * (p.y - c.y)) / denom;
             float alpha = 1.0f - beta - gamma;
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                float z = alpha * v0.z + beta * v1.z + gamma * v2.z;
+                float z = alpha * v0.z + beta * v1.z + gamma *v2.z;
                 if (z < z_buffer[screen_y][screen_x]) {
                     z_buffer[screen_y][screen_x] = z;
 
-                    glm::vec3 interp_normal = glm::normalize(alpha * n0 + beta * n1 + gamma * n2);
-                    glm::vec3 interp_pos = alpha * p0 + beta * p1 + gamma * p2;
-
-                    glm::vec3 color = calculate_vertex_color(
-                        interp_pos, interp_normal, light_pos, view_pos,
-                        mat.kd, mat.ka, mat.ks, mat.p,
-                        light_color, ambient_light
-                    );
+                    glm::vec3 color = alpha * c0 + beta * c1 + gamma * c2 ;
 
                     int idx = (screen_y * width + screen_x) * 3;
                     framebuffer[idx + 0] = color.r;
@@ -112,6 +108,7 @@ void rasterize_triangle(
         }
     }
 }
+
 
 void render() {
     OutputImage.clear();
@@ -164,6 +161,7 @@ void render() {
         //    data.normalBuffer[3 * i + 1],
         //    data.normalBuffer[3 * i + 2]
         //));
+
         glm::vec3 pos = glm::vec3(mv[0] / mv[3], mv[1] / mv[3], mv[2] / mv[3]);
         glm::vec3 center = glm::vec3(0.0f, 0.0f, -7.0f);
         glm::vec3 result_normal = glm::normalize(pos - center);
@@ -171,24 +169,25 @@ void render() {
         world_positions[i] = pos;
         vertex_normal[i] = result_normal;
 
+
+        vertex_colors[i] = calculate_vertex_color(
+			pos, result_normal, LightSource, view_pos,
+			M.kd, M.ka, M.ks, M.p,
+			glm::vec3(1.0f), M.Ia
+		);
+
     }for (int i = 0; i < data.numTriangles; i++) {
         int k0 = data.indexBuffer[3 * i + 0];
         int k1 = data.indexBuffer[3 * i + 1];
         int k2 = data.indexBuffer[3 * i + 2];
 
-        rasterize_triangle(OutputImage,
+        rasterize_triangle_gouraud(OutputImage,
             screen_vertices[k0], screen_vertices[k1], screen_vertices[k2],
-            vertex_normal[k0], vertex_normal[k1], vertex_normal[k2],
-            world_positions[k0], world_positions[k1], world_positions[k2],
-            z_buffer, Width, Height,
-            LightSource, view_pos,
-            M, glm::vec3(1.0f), M.Ia
-        );
+            vertex_colors[k0], vertex_colors[k1], vertex_colors[k2], 
+            z_buffer, Width, Height);
+
     }
 
-    for (auto& v : OutputImage) {
-        v = glm::clamp(powf(v, 1.0f / gammaCorrection), 0.0f, 1.0f);
-    }
 
     for (int i = 0; i < Height; i++) delete[] z_buffer[i];
     delete[] z_buffer;
