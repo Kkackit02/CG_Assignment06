@@ -12,4 +12,5 @@
   GLM: yaw function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angle function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angleAxis function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
+  LINK : program database D:\GitClone\CG_Assignment06\CG_Assignment6-1\bin\Q2.pdb missing; performing full link
   Q2.vcxproj -> D:\GitClone\CG_Assignment06\CG_Assignment6-1\bin\Q2.exe

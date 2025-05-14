@@ -182,8 +182,8 @@ void render() {
                     vec3 N = normalize(w0 * N0 + w1 * N1 + w2 * N2);
                     vec3 L = normalize(lightPos - P);
                     vec3 V = normalize(-P);
-                    vec3 H = normalize(L + V);  // Blinn-Phong ÇÙ½É
-
+                    vec3 H = normalize(L + V);  
+                    // Blinn-Phong 
                     vec3 ambient = Ia * ka;
                     vec3 diffuse = std::max(dot(N, L), 0.0f) * kd;
                     vec3 specular = pow(std::max(dot(N, H), 0.0f), shininess) * ks;

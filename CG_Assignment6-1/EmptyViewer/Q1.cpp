@@ -39,10 +39,10 @@ inline glm::vec3 calculate_flat_shading_color(
     const glm::vec3& la)
 {
     glm::vec3 N = glm::normalize(glm::cross(v1 - v0, v2 - v0)); 
-    glm::vec3 P = (v0 + v1 + v2) / 3.0f;                        // 삼각형 중심
-    glm::vec3 L = glm::normalize(light_pos - P);               // 광원 방향
-    glm::vec3 V = glm::normalize(view_pos - P);                // 시선 방향
-    glm::vec3 H = glm::normalize(V + L);                       // 하프벡터 (Blinn-Phong)
+    glm::vec3 P = (v0 + v1 + v2) / 3.0f;                       
+    glm::vec3 L = glm::normalize(light_pos - P);               
+    glm::vec3 V = glm::normalize(view_pos - P);                
+    glm::vec3 H = glm::normalize(V + L);                       
 
     float diff = glm::max(glm::dot(N, L), 0.0f);
     
