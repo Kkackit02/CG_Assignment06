@@ -13,11 +13,92 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-#include "sphere_scene.h"
 #include "Object.h"
 #include "Material.h"
-#include "viewPipeline.h"
 using namespace glm;
+
+void M_Model(float* result, const float* vertex, const float M[4][4])
+{
+    for (int i = 0; i < 4; i++) {
+        result[i] = 0;
+        for (int j = 0; j < 4; j++) {
+            result[i] += M[i][j] * vertex[j];
+        }
+    }
+}
+
+void M_Camera(float* result, const float* vertex, const Camera& cameraData)
+{
+    const float* u = cameraData.u;
+    const float* v = cameraData.v;
+    const float* w = cameraData.w;
+    const float* e = cameraData.eye;
+
+    float M[4][4] = {
+        {u[0], u[1], u[2], -(u[0] * e[0] + u[1] * e[1] + u[2] * e[2])},
+        {v[0], v[1], v[2], -(v[0] * e[0] + v[1] * e[1] + v[2] * e[2])},
+        {w[0], w[1], w[2], -(w[0] * e[0] + w[1] * e[1] + w[2] * e[2])},
+        {0,    0,    0,     1}
+    };
+
+    for (int i = 0; i < 4; i++) {
+        result[i] = 0;
+        for (int j = 0; j < 4; j++) {
+            result[i] += M[i][j] * vertex[j];
+        }
+    }
+}
+
+void M_Orthograph(float* result, const float* vertex, float l, float r, float b, float t, float n, float f)
+{
+    float M[4][4] = {
+        {2 / (r - l), 0,          0,         -(r + l) / (r - l)},
+        {0,         2 / (t - b),  0,         -(t + b) / (t - b)},
+        {0,         0,         -2 / (f - n), -(f + n) / (f - n)},
+        {0,         0,          0,          1}
+    };
+
+    for (int i = 0; i < 4; i++) {
+        result[i] = 0;
+        for (int j = 0; j < 4; j++) {
+            result[i] += M[i][j] * vertex[j];
+        }
+    }
+}
+
+void M_Perspective(float* result, const float* vertex, float n, float f)
+{
+    float M[4][4] = {
+        {n, 0, 0, 0},
+        {0, n, 0, 0},
+        {0, 0, n + f, -f * n},
+        {0, 0, 1, 0}
+    };
+
+    for (int i = 0; i < 4; i++) {
+        result[i] = 0;
+        for (int j = 0; j < 4; j++) {
+            result[i] += M[i][j] * vertex[j];
+        }
+    }
+}
+
+void M_Viewport(float* result, const float* vertex, int nx, int ny)
+{
+    float M[4][4] = {
+        {nx / 2.0f, 0, 0, (nx - 1) / 2.0f},
+        {0, ny / 2.0f, 0, (ny - 1) / 2.0f},
+        {0, 0, 1, 0},
+        {0, 0, 0, 1}
+    };
+
+    for (int i = 0; i < 4; i++) {
+        result[i] = 0;
+        for (int j = 0; j < 4; j++) {
+            result[i] += M[i][j] * vertex[j];
+        }
+    }
+}
 
 inline glm::vec3 make_vec3(const float arr[3]) {
     return glm::vec3(arr[0], arr[1], arr[2]);
@@ -134,10 +215,11 @@ inline glm::vec3 calculate_vertex_color(
     const glm::vec3& light_color,
     const glm::vec3& la)
 {
+
+    glm::vec3 N = glm::normalize(normal);
     glm::vec3 L = glm::normalize(light_pos - pos);
     glm::vec3 V = glm::normalize(view_pos - pos);
     glm::vec3 H = glm::normalize(V + L);
-    glm::vec3 N = glm::normalize(normal);
 
     float diff = glm::max(glm::dot(N, L), 0.0f);
     float spec = glm::pow(glm::max(glm::dot(N, H), 0.0f), p);
@@ -209,12 +291,8 @@ inline glm::vec3 calculate_vertex_color(
                     framebuffer[idx + 0] = final_color.r;
                     framebuffer[idx + 1] = final_color.g;
                     framebuffer[idx + 2] = final_color.b;
-                    if (screen_x > width / 2 - 5 && screen_x < width / 2 + 5 &&
-                        screen_y > height / 2 - 5 && screen_y < height / 2 + 5) {
-                        std::cout << "Pixel (" << screen_x << ", " << screen_y << ") -> "
-                            << "Color: (" << final_color.r << ", " << final_color.g << ", " << final_color.b << ")"
-                            << ", Z: " << z << std::endl;
-                    }
+
+
 
                 }
             }
@@ -261,9 +339,9 @@ void render() {
     // 1. 정점 위치와 MV 계산
     for (int i = 0; i < data.numVertices; i++) {
         float vert4[4] = {
-            data.vertexBuffer[3 * i + 0],
-            data.vertexBuffer[3 * i + 1],
-            data.vertexBuffer[3 * i + 2],
+            data.vertexBuffer[3 * i + 0],//x
+            data.vertexBuffer[3 * i + 1],//y
+            data.vertexBuffer[3 * i + 2],//z
             1.0f
         }; 
         float mv[4], cv[4], pv[4], ov[4], sv[4];
@@ -304,7 +382,7 @@ void render() {
         vertex_normal[i] = avg_normal;
 
         vertex_colors[i] = calculate_vertex_color(
-            world_positions[i], avg_normal, LightSource, view_pos,
+            world_positions[i], vertex_normal[i] , LightSource, view_pos,
             M.kd, M.ka, M.ks, M.p,
             glm::vec3(1.0f), M.Ia
         );

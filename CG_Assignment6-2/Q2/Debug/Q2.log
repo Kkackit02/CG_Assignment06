@@ -12,6 +12,4 @@
   GLM: yaw function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angle function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angleAxis function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
-D:\GitClone\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(54,45): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-D:\GitClone\CG_Assignment06\CG_Assignment6-2\Q2\Main_EmptyViewer.cpp(55,42): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
   Q2.vcxproj -> D:\GitClone\CG_Assignment06\CG_Assignment6-1\bin\Q2.exe

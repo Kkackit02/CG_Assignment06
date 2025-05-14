@@ -10,6 +10,9 @@
       <Platform>Win32</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\Users\JungGeunnyeong\Downloads\cg_code (1)\EmptyViewer\Main_EmptyViewer.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
@@ -73,18 +76,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="Main_EmptyViewer.cpp" />
-    <ClCompile Include="material.h" />
-    <ClCompile Include="sphere_scene.cpp" />
-    <ClCompile Include="ViewPipeline.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="camera.h" />
-    <ClInclude Include="Object.h" />
-    <ClInclude Include="sphere_scene.h" />
-    <ClInclude Include="viewPipeline.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
