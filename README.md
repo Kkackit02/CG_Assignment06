@@ -61,6 +61,10 @@
   </tr>
 </table>
 
+For Q1, all vertices were stored in a buffer, and the program operated by calling several separate functions.
+
+From Q2 onward, everything was implemented within a single script without using separate functions. Moreover, the structure was redesigned to be more efficient and better organized than the one used in Q1.
+
 
 - This project is compatible with **Visual Studio 2022**  
 - Rather than using **OpenGL**, *the rendering pipeline* was implemented manually from scratch. 
