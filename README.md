@@ -63,7 +63,7 @@
 
 
 - This project is compatible with **Visual Studio 2022**  
-- It is implemented using **OpenGL**  
+- Rather than using **OpenGL**, *the rendering pipeline* was implemented manually from scratch. 
 - **No additional installation is required** — just make sure you have **Visual Studio 2022** with the **C/C++ development workload** installed  
 - Clone the repository and follow the steps above to get started  
 - **Everything else is already included in the provided files**, so you're ready to go!
