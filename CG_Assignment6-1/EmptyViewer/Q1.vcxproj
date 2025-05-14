@@ -74,7 +74,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Main_EmptyViewer.cpp" />
+    <ClCompile Include="Q1.cpp" />
     <ClCompile Include="material.h" />
     <ClCompile Include="sphere_scene.cpp" />
     <ClCompile Include="ViewPipeline.cpp" />
