@@ -12,8 +12,8 @@
   GLM: yaw function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angle function returning degrees is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
   GLM: angleAxis function taking degrees as a parameter is deprecated. #define GLM_FORCE_RADIANS before including GLM headers to remove this message.
+D:\GitClone\CG_Assignment06\CG_Assignment6-1\EmptyViewer\Main_EmptyViewer.cpp(54,45): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+D:\GitClone\CG_Assignment06\CG_Assignment6-1\EmptyViewer\Main_EmptyViewer.cpp(55,46): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
   sphere_scene.cpp
-D:\GitClone\CG_Assignment06\CG_Assignment6-1\EmptyViewer\sphere_scene.cpp(30,36): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-D:\GitClone\CG_Assignment06\CG_Assignment6-1\EmptyViewer\sphere_scene.cpp(31,37): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
   Generating Code...
   Q1.vcxproj -> D:\GitClone\CG_Assignment06\CG_Assignment6-1\bin\Q1.exe
